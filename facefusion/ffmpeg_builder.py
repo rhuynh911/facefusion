@@ -48,7 +48,7 @@ def set_input(input_path : str) -> List[Command]:
 
 
 def set_input_fps(input_fps : Fps) -> List[Command]:
-	return [ '-r', str(input_fps)]
+	return [ '-r', str(input_fps) ]
 
 
 def set_output(output_path : str) -> List[Command]:
@@ -77,6 +77,10 @@ def set_stream_quality(stream_quality : int) -> List[Command]:
 
 def unsafe_concat() -> List[Command]:
 	return [ '-f', 'concat', '-safe', '0' ]
+
+
+def enforce_pixel_format(pixel_format : str) -> List[Command]:
+	return [ '-pix_fmt', pixel_format ]
 
 
 def set_pixel_format(video_encoder : VideoEncoder) -> List[Command]:
