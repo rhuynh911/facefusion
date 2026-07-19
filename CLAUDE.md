@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-FaceFusion (v3.5.2) is a face manipulation platform using ONNX Runtime for cross-platform inference. It supports face swapping, enhancement, detection, and analysis via both CLI and a Gradio web UI.
+FaceFusion (v3.6.1) is a face manipulation platform using ONNX Runtime for cross-platform inference. It supports face swapping, enhancement, detection, and analysis via both CLI and a Gradio web UI.
 
 ## Commands
 
@@ -37,7 +37,16 @@ flake8 facefusion.py install.py facefusion tests
 mypy facefusion.py install.py facefusion tests
 ```
 
-CI runs on Python 3.12 across macOS, Ubuntu, and Windows via `.github/workflows/ci.yml`.
+CI runs on Python 3.12 across macOS, Ubuntu, and Windows via `.github/workflows/ci.yml`. The `lint` job (flake8 + mypy) must pass before tests.
+
+## Code Style
+
+Enforced by CI via `.flake8`, `mypy.ini`, and `.editorconfig` — match it or the lint job fails:
+
+- **Tabs for indentation**, not spaces (`.editorconfig`). Unusual for Python; spaces will fail review and misalign against the codebase.
+- **Import order is linted** by `flake8-import-order` (`pycharm` style, first-party package `facefusion`): stdlib → third-party → local. Run `flake8` to check.
+- **Full type annotations required** — `mypy` runs with `disallow_untyped_defs`, `disallow_untyped_calls`, and `disallow_any_generics`, so every function needs typed params and a return type.
+- Line length is **not** enforced (no `E501`); wrapping is by preference.
 
 ## Architecture
 
@@ -69,7 +78,8 @@ Processors are loaded dynamically by `facefusion/processors/core.py`.
 - `state_manager.py` — global state container with dual `cli` / `ui` contexts; use `get_item()` / `set_item()` / `sync_item()`
 - `config.py` — wraps `facefusion.ini` (INI file for user defaults across all major settings)
 - `choices.py` — all enums/constants (model names, encoder options, execution providers, etc.)
-- `args.py` — full ArgumentParser definitions for CLI
+- `program.py` — builds the `ArgumentParser`; `create_program()` composes per-topic sub-programs (`program_helper.py` validates parsed args)
+- `args.py` — bridges parsed args ↔ state: `apply_args()` writes into `state_manager`; `reduce_step_args()` / `reduce_job_args()` / `collect_job_args()` split args for the job system
 
 ### Job System
 
@@ -90,6 +100,10 @@ Jobs are persisted as JSON files in the configured `jobs_path`.
 - `inference_manager.py` — ONNX Runtime session pooling/caching
 - `execution.py` — auto-detects and prioritizes execution providers (CUDA, TensorRT, DirectML, ROCm, CoreML, OpenVINO, CPU)
 - Models downloaded on demand to `.assets/models/` with hash verification via `download.py`
+
+### Content Safety Gate
+
+`core.py::common_pre_check()` hashes the source of `content_analyser.py` (the NSFW detector) and aborts startup unless it equals a hard-coded value (`b14e7b92`). This runs before `run`, `headless-run`, `batch-run`, and `benchmark`. **Any edit to `content_analyser.py` — even whitespace — changes the hash and makes every processing command hard-exit.** Leave it untouched; if a refactor is unavoidable, update the expected hash in `common_pre_check()` to match.
 
 ## Key Types (`facefusion/types.py`)
 

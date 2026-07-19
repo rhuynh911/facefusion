@@ -1,0 +1,1010 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>FaceFusion Architecture</title>
+<style>
+  :root{
+    --ink:#1a2433; --ink-soft:#3d4a5c; --muted:#66748a;
+    --brand:#1f5fa8; --brand-d:#16497f; --accent:#c8402f;
+    --line:#d9e0ea; --line-soft:#e9eef4;
+    --bg-soft:#f4f7fb; --bg-code:#f6f8fa; --bg-note:#eef5fc; --bg-warn:#fdf3ec;
+    --green:#2e7d55; --purple:#6b4fa0;
+  }
+  *{box-sizing:border-box}
+  html{-webkit-print-color-adjust:exact; print-color-adjust:exact;}
+  body{
+    font-family:"Segoe UI",-apple-system,Arial,sans-serif;
+    color:var(--ink); font-size:10.4px; line-height:1.55; margin:0;
+  }
+  @page{ size:A4; margin:16mm 15mm 16mm 15mm; }
+
+  h1,h2,h3,h4{ color:var(--brand-d); line-height:1.2; font-weight:600; }
+  h2{ font-size:19px; margin:0 0 2px; padding-bottom:5px; border-bottom:2.5px solid var(--brand); }
+  h3{ font-size:14px; margin:16px 0 5px; color:var(--brand); }
+  h4{ font-size:11.5px; margin:12px 0 3px; color:var(--ink); }
+  p{ margin:5px 0; }
+  a{ color:var(--brand); text-decoration:none; }
+  code,kbd{ font-family:"Cascadia Code","Consolas",monospace; font-size:9.2px;
+    background:var(--bg-code); border:1px solid var(--line-soft); border-radius:3px;
+    padding:0.5px 3px; color:#0b3d66; }
+  .path{ color:var(--accent); font-weight:500; white-space:nowrap; }
+  strong{ color:var(--ink); }
+  ul,ol{ margin:5px 0 5px 0; padding-left:18px; }
+  li{ margin:2.5px 0; }
+
+  /* ---- layout helpers ---- */
+  .section{ break-before:page; padding-top:2px; }
+  .no-break, figure, table, .note, .card, .kv { break-inside:avoid; }
+  .lead{ color:var(--ink-soft); font-size:11px; }
+  .cols{ display:flex; gap:14px; }
+  .cols > div{ flex:1; }
+
+  /* ---- cover ---- */
+  .cover{ height:262mm; display:flex; flex-direction:column;
+    justify-content:space-between; break-after:page; }
+  .cover .top{ margin-top:26mm; }
+  .cover .badge{ display:inline-block; background:var(--brand); color:#fff;
+    font-size:11px; letter-spacing:2px; padding:5px 13px; border-radius:4px; font-weight:600; }
+  .cover h1.title{ font-size:52px; margin:20px 0 6px; letter-spacing:-1px; color:var(--ink); }
+  .cover .sub{ font-size:19px; color:var(--muted); font-weight:400; margin:0; }
+  .cover .rule{ height:5px; width:130px; background:var(--accent); border-radius:3px; margin:22px 0; }
+  .cover .meta{ font-size:11.5px; color:var(--ink-soft); }
+  .cover .meta div{ margin:3px 0; }
+  .cover .foot{ border-top:1px solid var(--line); padding-top:10px;
+    display:flex; justify-content:space-between; color:var(--muted); font-size:10px; }
+  .statbar{ display:flex; gap:10px; margin-top:16px; flex-wrap:wrap; }
+  .stat{ background:var(--bg-soft); border:1px solid var(--line); border-radius:6px;
+    padding:9px 13px; min-width:96px; }
+  .stat b{ display:block; font-size:21px; color:var(--brand); line-height:1; }
+  .stat span{ font-size:9px; color:var(--muted); text-transform:uppercase; letter-spacing:.6px; }
+
+  /* ---- TOC ---- */
+  .toc{ break-after:page; }
+  .toc ol{ list-style:none; padding:0; margin:0; counter-reset:s; }
+  .toc > ol > li{ counter-increment:s; padding:6px 0; border-bottom:1px solid var(--line-soft); }
+  .toc > ol > li::before{ content:counter(s) "."; color:var(--brand); font-weight:700;
+    display:inline-block; width:22px; }
+  .toc .t{ font-weight:600; color:var(--ink); font-size:12px; }
+  .toc .d{ color:var(--muted); font-size:9.5px; margin-left:22px; }
+
+  /* ---- tables ---- */
+  table{ border-collapse:collapse; width:100%; margin:8px 0; font-size:9.1px; }
+  th,td{ border:1px solid var(--line); padding:4px 7px; text-align:left; vertical-align:top; }
+  th{ background:var(--brand); color:#fff; font-weight:600; }
+  tr:nth-child(even) td{ background:var(--bg-soft); }
+  td code{ font-size:8.6px; }
+
+  /* ---- callouts ---- */
+  .note,.warn,.tip{ border-radius:6px; padding:9px 12px; margin:10px 0; font-size:9.7px;
+    border-left:4px solid var(--brand); background:var(--bg-note); }
+  .warn{ border-left-color:var(--accent); background:var(--bg-warn); }
+  .tip{ border-left-color:var(--green); background:#eef7f1; }
+  .note .h,.warn .h,.tip .h{ font-weight:700; color:var(--brand-d); display:block; margin-bottom:2px; }
+  .warn .h{ color:#a5321f; } .tip .h{ color:var(--green); }
+
+  /* ---- code blocks ---- */
+  pre{ background:#0f1b2d; color:#d8e2f0; border-radius:6px; padding:10px 12px;
+    font-family:"Cascadia Code","Consolas",monospace; font-size:8.7px; line-height:1.5;
+    overflow-x:auto; margin:8px 0; white-space:pre; }
+  pre .c{ color:#7c92ad; } pre .k{ color:#8fd0ff; } pre .s{ color:#b7e6a6; } pre .f{ color:#ffcf8f; }
+
+  /* ---- cards / kv ---- */
+  .card{ border:1px solid var(--line); border-radius:7px; padding:10px 12px; margin:8px 0; background:#fff; }
+  .card .ct{ font-weight:700; color:var(--brand-d); font-size:11px; margin-bottom:3px; }
+  .kv{ display:grid; grid-template-columns:150px 1fr; gap:2px 12px; font-size:9.4px; margin:6px 0; }
+  .kv dt{ color:var(--muted); font-weight:600; }
+  .kv dd{ margin:0; }
+
+  figure{ margin:12px 0; text-align:center; }
+  figure svg{ max-width:100%; height:auto; }
+  figcaption{ font-size:9px; color:var(--muted); margin-top:5px; font-style:italic; }
+
+  .pill{ display:inline-block; padding:1px 7px; border-radius:10px; font-size:8.4px;
+    font-weight:600; color:#fff; background:var(--muted); }
+  .pill.b{ background:var(--brand); } .pill.g{ background:var(--green); }
+  .pill.p{ background:var(--purple); } .pill.a{ background:var(--accent); }
+
+  .hdr-eyebrow{ font-size:9px; letter-spacing:2px; text-transform:uppercase; color:var(--accent);
+    font-weight:700; margin:0 0 1px; }
+  .foot-note{ font-size:8.6px; color:var(--muted); border-top:1px solid var(--line-soft);
+    margin-top:14px; padding-top:6px; }
+</style>
+</head>
+<body>
+
+<!-- ============================ COVER ============================ -->
+<div class="cover">
+  <div class="top">
+    <span class="badge">TECHNICAL ARCHITECTURE</span>
+    <h1 class="title">FaceFusion</h1>
+    <p class="sub">Industry-leading face manipulation platform &mdash; a source-level architecture reference</p>
+    <div class="rule"></div>
+    <div class="statbar">
+      <div class="stat"><b>v3.6.1</b><span>Version</span></div>
+      <div class="stat"><b>ONNX</b><span>Runtime 1.24</span></div>
+      <div class="stat"><b>11</b><span>Processors</span></div>
+      <div class="stat"><b>4</b><span>UI Layouts</span></div>
+      <div class="stat"><b>9</b><span>Exec Providers</span></div>
+    </div>
+  </div>
+  <div>
+    <div class="meta">
+      <div><strong>Subject:</strong> FaceFusion codebase &mdash; end-to-end architecture, subsystems &amp; data flow</div>
+      <div><strong>Basis:</strong> Direct source analysis of the repository (CLI, workflows, processors, inference, jobs, UI)</div>
+      <div><strong>License / Author:</strong> OpenRAIL-AS &middot; Henry Ruhs &middot; facefusion.io</div>
+      <div><strong>Runtime:</strong> Python 3.10+ &middot; ONNX Runtime &middot; OpenCV &middot; FFmpeg &middot; Gradio 5.44</div>
+    </div>
+    <div class="foot">
+      <span>Generated from source code</span>
+      <span>Confidential &mdash; engineering reference</span>
+    </div>
+  </div>
+</div>
+
+<!-- ============================ TOC ============================ -->
+<div class="toc">
+  <p class="hdr-eyebrow">Contents</p>
+  <h2 style="border:none;margin-bottom:10px">Table of Contents</h2>
+  <ol>
+    <li><span class="t">System Overview &amp; Technology Stack</span><div class="d">What FaceFusion is, the runtime stack, and the layered architecture at a glance</div></li>
+    <li><span class="t">Entry Point &amp; CLI Dispatch</span><div class="d">facefusion.py &rarr; core.py, command routing, pre-checks, headless/batch flows</div></li>
+    <li><span class="t">Program, Arguments &amp; State</span><div class="d">program.py composition, args bridging, dual CLI/UI state, config &amp; choices</div></li>
+    <li><span class="t">The Face Analysis Pipeline</span><div class="d">Detection &rarr; landmarking &rarr; recognition &rarr; classification &rarr; selection &rarr; masking</div></li>
+    <li><span class="t">The Processor Plugin System</span><div class="d">Dynamic loading, the 8-method contract, process_frame, and the 11 processors</div></li>
+    <li><span class="t">Inference &amp; Execution Layer</span><div class="d">ONNX session pooling, execution-provider priority, model download &amp; integrity</div></li>
+    <li><span class="t">Processing Workflows &amp; Media I/O</span><div class="d">Image &amp; video pipelines, FFmpeg builder, vision, audio, temp lifecycle</div></li>
+    <li><span class="t">The Job System</span><div class="d">Persisted JSON jobs, CRUD, sequential runner, headless/batch as ephemeral jobs</div></li>
+    <li><span class="t">The UI System</span><div class="d">Gradio layouts, the render/listen/update component pattern, cross-wiring</div></li>
+    <li><span class="t">Cross-Cutting Concerns</span><div class="d">Content-safety gate, threading model, caching, memory, appendices</div></li>
+  </ol>
+  <div class="note"><span class="h">How to read this document</span>
+  Each section maps to a cluster of modules under <span class="path">facefusion/</span>. Inline references use the
+  <span class="path">file.py:line</span> convention so you can jump straight to the source. Diagrams show data/control flow;
+  tables enumerate models, options, and interfaces.</div>
+</div>
+
+<!-- ============================ 1. OVERVIEW ============================ -->
+<div class="section">
+  <p class="hdr-eyebrow">Section 1</p>
+  <h2>System Overview &amp; Technology Stack</h2>
+
+  <p class="lead">FaceFusion is a face-manipulation platform built around <strong>ONNX Runtime</strong> for portable, hardware-accelerated
+  inference. It performs face swapping, enhancement, editing, age modification, lip-syncing, colorization, upscaling and more, driven
+  either through a command-line interface or a <strong>Gradio</strong> web UI. The same processing core serves both.</p>
+
+  <h3>1.1 Design principles</h3>
+  <ul>
+    <li><strong>Plugin-oriented processing.</strong> Every transformation (swap, enhance, edit, &hellip;) is a self-contained
+      <em>processor</em> module conforming to a fixed 8-method interface, loaded dynamically by name.</li>
+    <li><strong>Model-agnostic inference.</strong> A central <span class="path">inference_manager</span> pools ONNX sessions;
+      execution providers (CUDA, TensorRT, DirectML, &hellip;) are auto-detected and prioritized at runtime.</li>
+    <li><strong>Shared analysers.</strong> Face detection, landmarking, recognition, classification and masking are computed once
+      per frame and reused by all processors through a content-hash cache.</li>
+    <li><strong>Reproducible jobs.</strong> Every run &mdash; interactive, headless, or batch &mdash; is expressed as a persisted
+      JSON <em>job</em> of ordered <em>steps</em>, giving identical execution semantics everywhere.</li>
+    <li><strong>Dual state contexts.</strong> CLI and UI keep separate state buckets, auto-selected by call-stack inspection,
+      with explicit sync bridges.</li>
+  </ul>
+
+  <h3>1.2 Technology stack</h3>
+  <table>
+    <tr><th style="width:26%">Concern</th><th style="width:34%">Technology</th><th>Notes</th></tr>
+    <tr><td>Language / runtime</td><td>Python 3.10+ (CI on 3.12)</td><td>Enforced at startup in <span class="path">core.py:95</span></td></tr>
+    <tr><td>Inference</td><td>ONNX Runtime 1.24.4, ONNX 1.21.0</td><td>Session pooling &amp; provider selection</td></tr>
+    <tr><td>Numerics</td><td>NumPy 2.2.1, SciPy 1.17.1</td><td>Frame math, STFT/mel for audio</td></tr>
+    <tr><td>Computer vision</td><td>OpenCV 4.13</td><td>Warping, masking, video capture</td></tr>
+    <tr><td>Media I/O</td><td>FFmpeg (external), curl (external)</td><td>Must be on <code>PATH</code>; frame extract/merge, audio</td></tr>
+    <tr><td>Web UI</td><td>Gradio 5.44.1 (+ rangeslider 0.0.8)</td><td>Layouts &amp; components</td></tr>
+    <tr><td>Progress / CLI</td><td>tqdm 4.67.3</td><td>Progress bars for extraction, processing, merge</td></tr>
+    <tr><td>Model delivery</td><td>GitHub Releases &amp; Hugging Face</td><td>On-demand download to <span class="path">.assets/models/</span> with CRC32 verification</td></tr>
+  </table>
+
+  <h3>1.3 The layered architecture</h3>
+  <figure>
+    <svg viewBox="0 0 760 430" width="760" font-family="Segoe UI,Arial">
+      <defs>
+        <marker id="ar" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto">
+          <path d="M0,0 L7,3 L0,6 Z" fill="#66748a"/>
+        </marker>
+        <style>
+          .lb{font-size:11px;fill:#16497f;font-weight:600}
+          .sm{font-size:9px;fill:#3d4a5c}
+          .lyr{font-size:9px;fill:#66748a;font-weight:700;letter-spacing:1px}
+          .box{fill:#fff;stroke:#1f5fa8;stroke-width:1.3}
+          .band{fill:#f4f7fb;stroke:#d9e0ea}
+        </style>
+      </defs>
+
+      <!-- Layer 1 entry -->
+      <rect class="band" x="10" y="14" width="740" height="56" rx="7"/>
+      <text class="lyr" x="22" y="30">ENTRY</text>
+      <rect class="box" x="120" y="24" width="150" height="36" rx="6"/>
+      <text class="lb" x="195" y="42" text-anchor="middle">CLI</text>
+      <text class="sm" x="195" y="54" text-anchor="middle">facefusion.py &middot; core.py</text>
+      <rect class="box" x="300" y="24" width="150" height="36" rx="6"/>
+      <text class="lb" x="375" y="42" text-anchor="middle">Gradio Web UI</text>
+      <text class="sm" x="375" y="54" text-anchor="middle">uis/ layouts + components</text>
+      <rect class="box" x="480" y="24" width="150" height="36" rx="6"/>
+      <text class="lb" x="555" y="42" text-anchor="middle">Job System</text>
+      <text class="sm" x="555" y="54" text-anchor="middle">jobs/ persisted JSON</text>
+
+      <!-- Layer 2 orchestration -->
+      <rect class="band" x="10" y="86" width="740" height="58" rx="7"/>
+      <text class="lyr" x="22" y="103">ORCHESTRATION</text>
+      <rect class="box" x="150" y="96" width="210" height="38" rx="6"/>
+      <text class="lb" x="255" y="114" text-anchor="middle">workflows/image_to_image</text>
+      <text class="sm" x="255" y="127" text-anchor="middle">still-image pipeline</text>
+      <rect class="box" x="400" y="96" width="210" height="38" rx="6"/>
+      <text class="lb" x="505" y="114" text-anchor="middle">workflows/image_to_video</text>
+      <text class="sm" x="505" y="127" text-anchor="middle">frame-parallel video pipeline</text>
+
+      <!-- Layer 3 processing -->
+      <rect class="band" x="10" y="160" width="740" height="84" rx="7"/>
+      <text class="lyr" x="22" y="177">PROCESSING</text>
+      <rect class="box" x="120" y="172" width="250" height="60" rx="6"/>
+      <text class="lb" x="245" y="190" text-anchor="middle">Face Analysis Pipeline</text>
+      <text class="sm" x="245" y="205" text-anchor="middle">detector &middot; landmarker &middot; recognizer</text>
+      <text class="sm" x="245" y="218" text-anchor="middle">classifier &middot; selector &middot; masker &middot; store</text>
+      <rect class="box" x="400" y="172" width="250" height="60" rx="6"/>
+      <text class="lb" x="525" y="190" text-anchor="middle">Processor Plugins &times;11</text>
+      <text class="sm" x="525" y="205" text-anchor="middle">swap &middot; enhance &middot; edit &middot; age &middot; lip-sync</text>
+      <text class="sm" x="525" y="218" text-anchor="middle">colorize &middot; upscale &middot; bg-remove &middot; &hellip;</text>
+
+      <!-- Layer 4 inference -->
+      <rect class="band" x="10" y="260" width="740" height="58" rx="7"/>
+      <text class="lyr" x="22" y="277">INFERENCE</text>
+      <rect class="box" x="120" y="270" width="170" height="38" rx="6"/>
+      <text class="lb" x="205" y="288" text-anchor="middle">inference_manager</text>
+      <text class="sm" x="205" y="301" text-anchor="middle">ONNX session pool</text>
+      <rect class="box" x="305" y="270" width="150" height="38" rx="6"/>
+      <text class="lb" x="380" y="288" text-anchor="middle">execution</text>
+      <text class="sm" x="380" y="301" text-anchor="middle">provider priority</text>
+      <rect class="box" x="470" y="270" width="160" height="38" rx="6"/>
+      <text class="lb" x="550" y="288" text-anchor="middle">download</text>
+      <text class="sm" x="550" y="301" text-anchor="middle">fetch + CRC verify</text>
+
+      <!-- Layer 5 foundation -->
+      <rect class="band" x="10" y="334" width="740" height="58" rx="7"/>
+      <text class="lyr" x="22" y="351">FOUNDATION</text>
+      <rect class="box" x="120" y="344" width="120" height="38" rx="6"/>
+      <text class="lb" x="180" y="362" text-anchor="middle">state_manager</text>
+      <text class="sm" x="180" y="375" text-anchor="middle">cli / ui state</text>
+      <rect class="box" x="250" y="344" width="120" height="38" rx="6"/>
+      <text class="lb" x="310" y="362" text-anchor="middle">vision + ffmpeg</text>
+      <text class="sm" x="310" y="375" text-anchor="middle">media I/O</text>
+      <rect class="box" x="380" y="344" width="110" height="38" rx="6"/>
+      <text class="lb" x="435" y="362" text-anchor="middle">config</text>
+      <text class="sm" x="435" y="375" text-anchor="middle">facefusion.ini</text>
+      <rect class="box" x="500" y="344" width="130" height="38" rx="6"/>
+      <text class="lb" x="565" y="362" text-anchor="middle">thread_helper</text>
+      <text class="sm" x="565" y="375" text-anchor="middle">semaphores</text>
+
+      <!-- connectors -->
+      <line x1="380" y1="70" x2="380" y2="86" stroke="#66748a" stroke-width="1.2" marker-end="url(#ar)"/>
+      <line x1="380" y1="144" x2="380" y2="160" stroke="#66748a" stroke-width="1.2" marker-end="url(#ar)"/>
+      <line x1="380" y1="244" x2="380" y2="260" stroke="#66748a" stroke-width="1.2" marker-end="url(#ar)"/>
+      <line x1="380" y1="318" x2="380" y2="334" stroke="#66748a" stroke-width="1.2" marker-end="url(#ar)"/>
+    </svg>
+    <figcaption>Figure 1 &mdash; Five-layer architecture. Both the CLI and the Gradio UI drive the same orchestration &rarr; processing &rarr; inference stack.</figcaption>
+  </figure>
+
+  <h3>1.4 Repository map</h3>
+  <div class="kv">
+    <dt>facefusion/core.py</dt><dd>CLI entry, command routing, pre-checks, headless/batch drivers</dd>
+    <dt>facefusion/program*.py</dt><dd>ArgumentParser composition &amp; validation</dd>
+    <dt>facefusion/args.py</dt><dd>args &harr; state &harr; job/step bridging</dd>
+    <dt>facefusion/state_manager.py</dt><dd>dual cli/ui global state container</dd>
+    <dt>facefusion/face_*.py</dt><dd>detection, landmarking, recognition, classification, selection, masking, store, analyser</dd>
+    <dt>facefusion/processors/</dt><dd>plugin loader + 11 processor modules + pixel_boost / live_portrait</dd>
+    <dt>facefusion/inference_manager.py</dt><dd>ONNX session pooling &amp; caching</dd>
+    <dt>facefusion/execution.py</dt><dd>execution-provider detection &amp; options</dd>
+    <dt>facefusion/workflows/</dt><dd>image_to_image &amp; image_to_video orchestration</dd>
+    <dt>facefusion/vision / ffmpeg*</dt><dd>frame &amp; video/media I/O</dd>
+    <dt>facefusion/audio / voice_extractor</dt><dd>audio decode, mel features, vocal isolation</dd>
+    <dt>facefusion/jobs/</dt><dd>job manager, runner, store, helpers, list</dd>
+    <dt>facefusion/uis/</dt><dd>Gradio layouts &amp; components</dd>
+    <dt>facefusion/content_analyser.py</dt><dd>NSFW safety gate (hash-pinned)</dd>
+  </div>
+</div>
+
+<!-- ============================ 2. ENTRY POINT ============================ -->
+<div class="section">
+  <p class="hdr-eyebrow">Section 2</p>
+  <h2>Entry Point &amp; CLI Dispatch</h2>
+
+  <p class="lead">The single executable <span class="path">facefusion.py</span> defers to
+  <span class="path">core.py::cli()</span>, which builds the argument parser, validates it, applies arguments into global state,
+  and routes to a command handler. All heavy commands pass through a two-stage pre-check before any model runs.</p>
+
+  <h3>2.1 The cli() bootstrap</h3>
+  <p>The bootstrap sequence in <span class="path">core.py:23&ndash;40</span> is deliberately linear:</p>
+  <pre><span class="k">def</span> cli():
+    <span class="k">if</span> pre_check():                        <span class="c"># python&gt;=3.10, curl &amp; ffmpeg on PATH</span>
+        signal.signal(SIGINT, signal_exit)  <span class="c"># graceful Ctrl-C</span>
+        program = create_program()          <span class="c"># compose all sub-parsers</span>
+        <span class="k">if</span> validate_args(program):          <span class="c"># defaults must be valid choices</span>
+            args = vars(program.parse_args())
+            apply_args(args, state_manager.init_item)   <span class="c"># seed BOTH cli+ui buckets</span>
+            <span class="k">if</span> state_manager.get_item(<span class="s">'command'</span>):
+                logger.init(...); route(args)
+            <span class="k">else</span>: program.print_help()
+        <span class="k">else</span>: hard_exit(2)
+    <span class="k">else</span>: hard_exit(2)</pre>
+
+  <div class="cols">
+    <div>
+      <h4>pre_check() &mdash; environment</h4>
+      <ul>
+        <li>Python <code>&lt; 3.10</code> &rarr; error &amp; abort (<span class="path">core.py:95</span>)</li>
+        <li><code>curl</code> missing on PATH &rarr; abort</li>
+        <li><code>ffmpeg</code> missing on PATH &rarr; abort</li>
+      </ul>
+    </div>
+    <div>
+      <h4>common_pre_check() &mdash; models + safety</h4>
+      <ul>
+        <li><code>pre_check()</code> on all shared analyser modules (download hashes/sources)</li>
+        <li>Re-hashes <span class="path">content_analyser.py</span> source; must equal <code>b14e7b92</code> (see &sect;10.1)</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3>2.2 Command routing</h3>
+  <p><span class="path">route(args)</span> (<span class="path">core.py:43</span>) dispatches on the <code>command</code> state item. It first
+  applies an optional system-memory limit, then branches:</p>
+  <table>
+    <tr><th style="width:22%">Command group</th><th style="width:33%">Commands</th><th>Behaviour</th></tr>
+    <tr><td>Processing</td><td><code>run</code>, <code>headless-run</code>, <code>batch-run</code>, <code>benchmark</code></td>
+        <td>Require <code>common_pre_check</code> + <code>processors_pre_check</code>; then launch UI or run job(s)</td></tr>
+    <tr><td>Downloads</td><td><code>force-download</code></td><td>Iterate every analyser + processor model set; fetch &amp; verify</td></tr>
+    <tr><td>Job management</td><td><code>job-create/submit/delete/add-step/&hellip;</code></td><td>Init jobs dir, then CRUD via <span class="path">job_manager</span></td></tr>
+    <tr><td>Job execution</td><td><code>job-run/run-all/retry/retry-all</code></td><td>Sequential execution via <span class="path">job_runner</span></td></tr>
+  </table>
+
+  <h3>2.3 conditional_process() &mdash; the fork to workflows</h3>
+  <p>Every processing path ultimately reaches <span class="path">conditional_process()</span> (<span class="path">core.py:336</span>).
+  It runs each processor's <code>pre_process('output')</code> gate, then dispatches by target media type:</p>
+  <figure>
+    <svg viewBox="0 0 720 130" width="720" font-family="Segoe UI,Arial">
+      <defs><marker id="ar2" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#66748a"/></marker>
+      <style>.b{fill:#fff;stroke:#1f5fa8;stroke-width:1.2}.t{font-size:10px;fill:#16497f;font-weight:600}.s{font-size:8.5px;fill:#3d4a5c}</style></defs>
+      <rect class="b" x="8" y="46" width="130" height="40" rx="6"/><text class="t" x="73" y="62" text-anchor="middle">process_step</text><text class="s" x="73" y="76" text-anchor="middle">apply job+step args</text>
+      <line x1="138" y1="66" x2="176" y2="66" stroke="#66748a" marker-end="url(#ar2)"/>
+      <rect class="b" x="178" y="46" width="150" height="40" rx="6"/><text class="t" x="253" y="62" text-anchor="middle">pre_process(output)</text><text class="s" x="253" y="76" text-anchor="middle">per processor gate</text>
+      <line x1="328" y1="66" x2="366" y2="66" stroke="#66748a" marker-end="url(#ar2)"/>
+      <rect class="b" x="368" y="30" width="150" height="30" rx="6"/><text class="t" x="443" y="49" text-anchor="middle">is_image? &rarr; image_to_image</text>
+      <rect class="b" x="368" y="72" width="150" height="30" rx="6"/><text class="t" x="443" y="91" text-anchor="middle">is_video? &rarr; image_to_video</text>
+      <line x1="518" y1="45" x2="556" y2="45" stroke="#66748a" marker-end="url(#ar2)"/>
+      <line x1="518" y1="87" x2="556" y2="87" stroke="#66748a" marker-end="url(#ar2)"/>
+      <rect class="b" x="558" y="46" width="150" height="40" rx="6"/><text class="t" x="633" y="62" text-anchor="middle">Output file</text><text class="s" x="633" y="76" text-anchor="middle">ErrorCode 0 = success</text>
+    </svg>
+    <figcaption>Figure 2 &mdash; A single step: arguments are applied to state, each processor's precondition is checked, then the image or video workflow runs.</figcaption>
+  </figure>
+
+  <div class="note"><span class="h">Error-code convention</span>
+  Workflows return a small integer <code>ErrorCode</code>: <code>0</code> success, <code>1</code> generic failure,
+  <code>2</code> pre-check/validation failure, <code>3</code> content-analysis rejection (NSFW), <code>4</code> user-initiated stop.
+  <code>hard_exit(code)</code> propagates it to the shell.</div>
+</div>
+
+<!-- ============================ 3. PROGRAM/ARGS/STATE ============================ -->
+<div class="section">
+  <p class="hdr-eyebrow">Section 3</p>
+  <h2>Program, Arguments &amp; State</h2>
+
+  <p class="lead">Three modules translate the outside world into runtime configuration: <span class="path">program.py</span> defines the
+  CLI, <span class="path">args.py</span> bridges parsed arguments to state and to persisted jobs, and
+  <span class="path">state_manager.py</span> holds that configuration in two parallel contexts.</p>
+
+  <h3>3.1 Program composition</h3>
+  <p><span class="path">program.py</span> builds the CLI from many small, single-topic <code>ArgumentParser</code> factories, each created
+  with <code>add_help=False</code> so it can act as a reusable <em>parent</em>. Two aggregators bundle them:</p>
+  <div class="kv">
+    <dt>collect_step_program()</dt><dd>detector + landmarker + selector + masker + voice-extractor + frame-extraction + output-creation + processors</dd>
+    <dt>collect_job_program()</dt><dd>execution + download-providers + memory + log-level</dd>
+  </div>
+  <p><span class="path">create_program()</span> then registers one sub-parser per command (<code>run</code>, <code>headless-run</code>,
+  <code>batch-run</code>, all job commands, &hellip;), composing each from the relevant parents. Two behaviours are worth noting:</p>
+  <ul>
+    <li><strong>Config-backed defaults.</strong> Each argument's <code>default</code> comes from <span class="path">config.get_*</span>,
+      i.e. from <span class="path">facefusion.ini</span>, falling back to a hard-coded string.</li>
+    <li><strong>Key registration as a side-effect.</strong> Building a factory also calls
+      <code>job_store.register_step_keys([&hellip;])</code> or <code>register_job_keys([&hellip;])</code>. This registry is the single
+      source of truth for which keys are per-step vs job-wide.</li>
+    <li><strong>Dynamic choices.</strong> The detector-size choices depend on the chosen detector model (a preliminary
+      <code>parse_known_args</code> reads it first); processors inject their own arguments via <code>register_args</code>.</li>
+  </ul>
+  <p><span class="path">program_helper.validate_args()</span> walks the whole parser tree and verifies that every argument whose
+  <code>default</code> is constrained by <code>choices</code> actually holds a legal value &mdash; catching a misconfigured INI before
+  anything runs.</p>
+
+  <h3>3.2 Argument &harr; state &harr; job bridging</h3>
+  <p><span class="path">args.py::apply_args(args, apply_state_item)</span> is the args&rarr;state writer. Crucially it takes the
+  state-writer <em>as a parameter</em>, so the same code serves two callers:</p>
+  <table>
+    <tr><th style="width:30%">Caller</th><th style="width:32%">Writer passed</th><th>Effect</th></tr>
+    <tr><td>CLI startup (<span class="path">core.py:30</span>)</td><td><code>state_manager.init_item</code></td><td>Seeds <em>both</em> cli &amp; ui buckets from argv</td></tr>
+    <tr><td>Per-step (<span class="path">core.py:327</span>)</td><td><code>state_manager.set_item</code></td><td>Applies one step's merged args into the active bucket</td></tr>
+  </table>
+  <p>Four reducer/collector helpers, driven by the <span class="path">job_store</span> key registry, move data between argv/state and
+  the persisted job JSON:</p>
+  <div class="kv">
+    <dt>reduce_step_args(args)</dt><dd>argv &rarr; the subset of registered <em>step</em> keys (stored in a job step)</dd>
+    <dt>reduce_job_args(args)</dt><dd>argv &rarr; the subset of registered <em>job</em> keys (execution, memory, patterns&hellip;)</dd>
+    <dt>collect_step_args()</dt><dd>live <em>state</em> &rarr; step keys (UI snapshots current config into a job)</dd>
+    <dt>collect_job_args()</dt><dd>live <em>state</em> &rarr; job keys</dd>
+  </div>
+
+  <h3>3.3 Dual CLI/UI state</h3>
+  <p><span class="path">state_manager.py</span> keeps a module-global <code>STATE_SET = {'cli': {}, 'ui': {}}</code>. The active bucket is
+  chosen <em>per call</em> by <span class="path">app_context.detect_app_context()</span>, which walks the call stack and inspects
+  filenames:</p>
+  <figure>
+    <svg viewBox="0 0 720 190" width="720" font-family="Segoe UI,Arial">
+      <defs><marker id="ar3" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#66748a"/></marker>
+      <style>.b{fill:#fff;stroke:#1f5fa8;stroke-width:1.2}.g{fill:#eef7f1;stroke:#2e7d55;stroke-width:1.2}.t{font-size:10px;fill:#16497f;font-weight:600}.tg{font-size:10px;fill:#2e7d55;font-weight:600}.s{font-size:8.4px;fill:#3d4a5c}</style></defs>
+      <rect class="b" x="10" y="70" width="150" height="46" rx="6"/><text class="t" x="85" y="90" text-anchor="middle">caller frame</text><text class="s" x="85" y="104" text-anchor="middle">inspect co_filename</text>
+      <line x1="160" y1="93" x2="200" y2="93" stroke="#66748a" marker-end="url(#ar3)"/>
+      <rect class="b" x="202" y="70" width="150" height="46" rx="6"/><text class="t" x="277" y="90" text-anchor="middle">detect_app_context</text><text class="s" x="277" y="104" text-anchor="middle">jobs/ &rarr; cli, uis/ &rarr; ui</text>
+      <line x1="352" y1="82" x2="392" y2="55" stroke="#66748a" marker-end="url(#ar3)"/>
+      <line x1="352" y1="104" x2="392" y2="132" stroke="#66748a" marker-end="url(#ar3)"/>
+      <rect class="g" x="394" y="30" width="150" height="44" rx="6"/><text class="tg" x="469" y="50" text-anchor="middle">STATE_SET['cli']</text><text class="s" x="469" y="64" text-anchor="middle">read by jobs / CLI</text>
+      <rect class="g" x="394" y="114" width="150" height="44" rx="6"/><text class="tg" x="469" y="134" text-anchor="middle">STATE_SET['ui']</text><text class="s" x="469" y="148" text-anchor="middle">written by UI listeners</text>
+      <path d="M548,52 C600,52 600,136 552,136" fill="none" stroke="#c8402f" stroke-width="1.3" stroke-dasharray="4 3" marker-end="url(#ar3)"/>
+      <text x="640" y="90" text-anchor="middle" font-size="8.6" fill="#c8402f">sync_item /</text>
+      <text x="640" y="101" text-anchor="middle" font-size="8.6" fill="#c8402f">sync_state</text>
+      <text x="640" y="112" text-anchor="middle" font-size="8.6" fill="#c8402f">bridge ui&rarr;cli</text>
+    </svg>
+    <figcaption>Figure 3 &mdash; State context is resolved by call-stack inspection. UI edits touch only the ui bucket until an explicit sync pushes them into cli (where job code reads them).</figcaption>
+  </figure>
+  <div class="kv">
+    <dt>init_item(k,v)</dt><dd>writes to <em>both</em> buckets (startup baseline)</dd>
+    <dt>get_item(k) / set_item(k,v)</dt><dd>read/write the <em>active</em> bucket only</dd>
+    <dt>sync_item(k) / sync_state()</dt><dd>copy one key / the whole bucket from ui &rarr; cli</dd>
+  </div>
+
+  <h3>3.4 Config &amp; choices</h3>
+  <div class="cols">
+    <div>
+      <div class="card"><div class="ct">config.py</div>
+      Wraps <span class="path">facefusion.ini</span> via a singleton <code>ConfigParser</code>. Typed getters
+      (<code>get_str/int/float/bool_value</code> + <code>get_str/int_list</code>) return the INI value only if present and non-blank,
+      else a cast fallback. Defaults live at the <span class="path">program.py</span> call sites, not in the file.</div>
+    </div>
+    <div>
+      <div class="card"><div class="ct">choices.py</div>
+      The single registry of allowed values: model lists (mostly derived from <code>Literal</code> types via
+      <code>get_args()</code>), mapping dicts (provider&rarr;ORT class, mask region&rarr;label ids, encoder sets), and numeric ranges
+      feeding both argparse and UI sliders. Keeps CLI and UI vocabularies identical.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================ 4. FACE PIPELINE ============================ -->
+<div class="section">
+  <p class="hdr-eyebrow">Section 4</p>
+  <h2>The Face Analysis Pipeline</h2>
+
+  <p class="lead">Before any processor runs, FaceFusion turns raw pixels into structured <code>Face</code> objects. This shared pipeline
+  &mdash; orchestrated by <span class="path">face_analyser.py</span> &mdash; runs once per frame and is cached, so every processor
+  reuses the same detections.</p>
+
+  <h3>4.1 End-to-end face construction</h3>
+  <p>The entry point <span class="path">get_many_faces()</span> (<span class="path">face_analyser.py:96</span>) checks the frame cache
+  first, then detects across configured angles, then assembles each face:</p>
+  <figure>
+    <svg viewBox="0 0 740 250" width="740" font-family="Segoe UI,Arial">
+      <defs><marker id="ar4" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#66748a"/></marker>
+      <style>.b{fill:#fff;stroke:#1f5fa8;stroke-width:1.2}.t{font-size:9.6px;fill:#16497f;font-weight:600}.s{font-size:8px;fill:#3d4a5c}.n{font-size:8px;fill:#66748a}</style></defs>
+
+      <rect class="b" x="8" y="16" width="120" height="42" rx="6"/><text class="t" x="68" y="34" text-anchor="middle">VisionFrame</text><text class="s" x="68" y="47" text-anchor="middle">BGR uint8</text>
+      <line x1="128" y1="37" x2="162" y2="37" stroke="#66748a" marker-end="url(#ar4)"/>
+      <rect class="b" x="164" y="16" width="130" height="42" rx="6"/><text class="t" x="229" y="30" text-anchor="middle">Detector</text><text class="s" x="229" y="42" text-anchor="middle">retinaface/scrfd/</text><text class="s" x="229" y="52" text-anchor="middle">yolo/yunet + angles</text>
+      <line x1="294" y1="37" x2="328" y2="37" stroke="#66748a" marker-end="url(#ar4)"/>
+      <rect class="b" x="330" y="16" width="120" height="42" rx="6"/><text class="t" x="390" y="34" text-anchor="middle">NMS</text><text class="s" x="390" y="47" text-anchor="middle">cv2.dnn.NMSBoxes</text>
+      <line x1="450" y1="37" x2="484" y2="37" stroke="#66748a" marker-end="url(#ar4)"/>
+      <rect class="b" x="486" y="16" width="130" height="42" rx="6"/><text class="t" x="551" y="30" text-anchor="middle">Landmarker</text><text class="s" x="551" y="42" text-anchor="middle">5&rarr;68 (fan_68_5)</text><text class="s" x="551" y="52" text-anchor="middle">2dfan4/peppa_wutz</text>
+
+      <line x1="551" y1="58" x2="551" y2="92" stroke="#66748a" marker-end="url(#ar4)"/>
+      <rect class="b" x="486" y="94" width="130" height="42" rx="6"/><text class="t" x="551" y="112" text-anchor="middle">Recognizer</text><text class="s" x="551" y="125" text-anchor="middle">arcface &rarr; embedding</text>
+      <line x1="486" y1="115" x2="452" y2="115" stroke="#66748a" marker-end="url(#ar4)"/>
+      <rect class="b" x="330" y="94" width="120" height="42" rx="6"/><text class="t" x="390" y="112" text-anchor="middle">Classifier</text><text class="s" x="390" y="125" text-anchor="middle">fairface: g/age/race</text>
+      <line x1="330" y1="115" x2="296" y2="115" stroke="#66748a" marker-end="url(#ar4)"/>
+      <rect class="b" x="164" y="94" width="130" height="42" rx="6"/><text class="t" x="229" y="112" text-anchor="middle">Face(...)</text><text class="s" x="229" y="125" text-anchor="middle">assembled namedtuple</text>
+      <line x1="229" y1="136" x2="229" y2="170" stroke="#66748a" marker-end="url(#ar4)"/>
+      <rect class="b" x="164" y="172" width="130" height="42" rx="6" style="fill:#eef7f1;stroke:#2e7d55"/><text class="t" x="229" y="190" text-anchor="middle" style="fill:#2e7d55">face_store</text><text class="s" x="229" y="203" text-anchor="middle">cache by frame hash</text>
+
+      <text class="n" x="68" y="200">Cache hit on</text><text class="n" x="68" y="211">crc32(frame bytes)</text>
+      <text class="n" x="68" y="222">short-circuits the</text><text class="n" x="68" y="233">whole pipeline</text>
+    </svg>
+    <figcaption>Figure 4 &mdash; Per-frame face construction. The 5-point landmark used downstream (<code>'5/68'</code>) is upgraded from the 68-point detector output when the landmarker is confident, else the raw detector points.</figcaption>
+  </figure>
+
+  <h3>4.2 The Face type</h3>
+  <p><code>Face</code> is a namedtuple (<span class="path">types.py:35</span>) carrying everything downstream processors need:</p>
+  <table>
+    <tr><th style="width:20%">Field</th><th style="width:30%">Type</th><th>Meaning</th></tr>
+    <tr><td><code>bounding_box</code></td><td>NDArray [x1,y1,x2,y2]</td><td>Face box in frame coords</td></tr>
+    <tr><td><code>score_set</code></td><td>{detector, landmarker}</td><td>Confidence of each stage</td></tr>
+    <tr><td><code>landmark_set</code></td><td>{'5','5/68','68','68/5'}</td><td>Four landmark variants; <code>'5/68'</code> is the one used for warping</td></tr>
+    <tr><td><code>angle</code></td><td>int (0/90/180/270)</td><td>Estimated in-plane rotation</td></tr>
+    <tr><td><code>embedding</code></td><td>NDArray float</td><td>Raw ArcFace identity vector</td></tr>
+    <tr><td><code>embedding_norm</code></td><td>NDArray</td><td>L2-normalized embedding (for distance)</td></tr>
+    <tr><td><code>gender</code></td><td>'male' | 'female'</td><td>From FairFace</td></tr>
+    <tr><td><code>age</code></td><td>Python <code>range</code></td><td>Age bucket, e.g. <code>range(20,30)</code></td></tr>
+    <tr><td><code>race</code></td><td>Literal[6 values]</td><td>white/black/latino/asian/indian/arabic</td></tr>
+  </table>
+
+  <h3>4.3 The analyser modules</h3>
+  <table>
+    <tr><th style="width:17%">Module</th><th style="width:30%">Models</th><th>Role &amp; key detail</th></tr>
+    <tr><td><span class="path">face_detector</span></td><td>retinaface, scrfd, yolo_face, yunet, <code>many</code></td>
+      <td>Multi-angle detection; per-model normalization &amp; anchor decode; boxes fed to NMS in the analyser. <code>many</code> runs three detectors together.</td></tr>
+    <tr><td><span class="path">face_landmarker</span></td><td>2dfan4, peppa_wutz, fan_68_5</td>
+      <td>Refines 68-point landmarks; <code>fan_68_5</code> always lifts 5&rarr;68; CLAHE contrast boost for dark faces.</td></tr>
+    <tr><td><span class="path">face_recognizer</span></td><td>arcface_w600k_r50</td>
+      <td>Warps to a 112&sup2; ArcFace template, returns raw + L2-normalized embedding.</td></tr>
+    <tr><td><span class="path">face_classifier</span></td><td>fairface</td>
+      <td>224&sup2; input; predicts gender, age bucket, race.</td></tr>
+    <tr><td><span class="path">face_selector</span></td><td>&mdash;</td>
+      <td>Chooses faces by mode (one/many/reference), order, and attribute filters (age/gender/race). Reference mode matches by embedding distance.</td></tr>
+    <tr><td><span class="path">face_masker</span></td><td>xseg (occlusion), bisenet (region)</td>
+      <td>Builds box / occlusion / region / area masks that constrain where a processor writes.</td></tr>
+    <tr><td><span class="path">face_store</span></td><td>&mdash;</td>
+      <td>Caches <code>List[Face]</code> keyed by <code>crc32(frame.tobytes())</code>; the reason the pipeline runs once per unique frame.</td></tr>
+  </table>
+
+  <h3>4.4 Selection &amp; masking detail</h3>
+  <div class="cols">
+    <div>
+      <div class="card"><div class="ct">face_selector modes</div>
+      <ul>
+        <li><span class="pill b">many</span> all faces, sorted &amp; filtered</li>
+        <li><span class="pill b">one</span> first face after sort/filter</li>
+        <li><span class="pill b">reference</span> match target faces to a chosen reference face within <code>reference_face_distance</code> (cosine-style distance on <code>embedding_norm</code>)</li>
+      </ul>
+      <strong>Order:</strong> left-right, right-left, top-bottom, bottom-top, small-large, large-small, best-worst, worst-best.<br>
+      <strong>Filters:</strong> gender (exact), race (exact), age (range intersection).</div>
+    </div>
+    <div>
+      <div class="card"><div class="ct">face_masker types</div>
+      <ul>
+        <li><span class="pill p">box</span> geometric; padding + Gaussian blur (no model)</li>
+        <li><span class="pill p">occlusion</span> XSeg models; hides hands/hair over the face</li>
+        <li><span class="pill p">region</span> BiSeNet parser; select skin/brows/eyes/nose/mouth/&hellip;</li>
+        <li><span class="pill p">area</span> convex hull over landmark groups (upper/lower face, mouth)</li>
+      </ul>
+      Masks are combined and used at <em>paste-back</em> so edits blend only where intended.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================ 5. PROCESSORS ============================ -->
+<div class="section">
+  <p class="hdr-eyebrow">Section 5</p>
+  <h2>The Processor Plugin System</h2>
+
+  <p class="lead">Processors are the units of transformation. Each is a subpackage under
+  <span class="path">facefusion/processors/modules/&lt;name&gt;/</span> whose <code>core.py</code> implements a fixed interface. They are
+  loaded dynamically by name and chained per frame.</p>
+
+  <h3>5.1 Dynamic loading &amp; the contract</h3>
+  <p>The 45-line loader <span class="path">processors/core.py</span> imports
+  <code>facefusion.processors.modules.&lt;name&gt;.core</code> and validates that it exposes all eight required methods; a missing method
+  raises <code>NotImplementedError</code> and hard-exits. <span class="path">get_processors_modules(names)</span> returns the validated
+  module objects used throughout the workflows.</p>
+  <table>
+    <tr><th style="width:26%">Method</th><th>Responsibility</th></tr>
+    <tr><td><code>get_inference_pool()</code></td><td>Build/return this module's ONNX sessions for the selected model</td></tr>
+    <tr><td><code>clear_inference_pool()</code></td><td>Evict this module's cached sessions</td></tr>
+    <tr><td><code>register_args(program)</code></td><td>Add CLI args (defaults from config) &amp; register step keys</td></tr>
+    <tr><td><code>apply_args(args, writer)</code></td><td>Copy parsed args into state via the injected writer</td></tr>
+    <tr><td><code>pre_check()</code></td><td>Ensure model hashes + sources are downloaded &amp; valid</td></tr>
+    <tr><td><code>pre_process(mode)</code></td><td>Validate preconditions (e.g. swapper needs a source face; lip-syncer needs audio)</td></tr>
+    <tr><td><code>post_process()</code></td><td>Clear caches; under memory strategy <em>strict/moderate</em>, release inference pools</td></tr>
+    <tr><td><code>process_frame(inputs)</code></td><td>The core per-frame transformation &rarr; returns <code>(frame, mask)</code></td></tr>
+  </table>
+  <div class="note"><span class="h">Not part of the interface</span>
+  <code>process_image</code> / <code>process_video</code> are <em>workflow-level</em> functions, not processor methods.
+  <code>create_static_model_set()</code> exists in every module (declaring the ONNX catalogue) but is a private
+  <code>@lru_cache</code>d helper, not loader-enforced.</div>
+
+  <h3>5.2 The process_frame chain</h3>
+  <p>For each frame the workflow builds one <code>inputs</code> dict and threads it through <em>every</em> selected processor in order;
+  each receives the previous processor's output frame and mask:</p>
+  <figure>
+    <svg viewBox="0 0 730 170" width="730" font-family="Segoe UI,Arial">
+      <defs><marker id="ar5" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#66748a"/></marker>
+      <style>.b{fill:#fff;stroke:#1f5fa8;stroke-width:1.2}.t{font-size:9px;fill:#16497f;font-weight:600}.s{font-size:7.6px;fill:#3d4a5c}.in{fill:#f4f7fb;stroke:#d9e0ea}</style></defs>
+      <rect class="in" x="8" y="20" width="150" height="130" rx="7"/>
+      <text class="t" x="83" y="36" text-anchor="middle">inputs dict</text>
+      <text class="s" x="18" y="52">reference_vision_frame</text>
+      <text class="s" x="18" y="66">source_vision_frames</text>
+      <text class="s" x="18" y="80">source_audio_frame</text>
+      <text class="s" x="18" y="94">source_voice_frame</text>
+      <text class="s" x="18" y="108">target_vision_frame</text>
+      <text class="s" x="18" y="122">temp_vision_frame &lambda;</text>
+      <text class="s" x="18" y="136">temp_vision_mask &lambda;</text>
+      <line x1="158" y1="85" x2="192" y2="85" stroke="#66748a" marker-end="url(#ar5)"/>
+      <rect class="b" x="194" y="64" width="120" height="42" rx="6"/><text class="t" x="254" y="82" text-anchor="middle">face_swapper</text><text class="s" x="254" y="96" text-anchor="middle">process_frame</text>
+      <line x1="314" y1="85" x2="348" y2="85" stroke="#66748a" marker-end="url(#ar5)"/>
+      <rect class="b" x="350" y="64" width="120" height="42" rx="6"/><text class="t" x="410" y="82" text-anchor="middle">face_enhancer</text><text class="s" x="410" y="96" text-anchor="middle">process_frame</text>
+      <line x1="470" y1="85" x2="504" y2="85" stroke="#66748a" marker-end="url(#ar5)"/>
+      <rect class="b" x="506" y="64" width="120" height="42" rx="6"/><text class="t" x="566" y="82" text-anchor="middle">&hellip; more</text><text class="s" x="566" y="96" text-anchor="middle">process_frame</text>
+      <line x1="626" y1="85" x2="660" y2="85" stroke="#66748a" marker-end="url(#ar5)"/>
+      <rect class="b" x="662" y="64" width="60" height="42" rx="6" style="fill:#eef7f1;stroke:#2e7d55"/><text class="t" x="692" y="79" text-anchor="middle" style="fill:#2e7d55">write</text><text class="s" x="692" y="93" text-anchor="middle">frame</text>
+      <text class="s" x="410" y="140" text-anchor="middle" fill="#66748a">&lambda; = carried &amp; mutated frame-to-frame; each returns ProcessorOutputs = (VisionFrame, Mask)</text>
+    </svg>
+    <figcaption>Figure 5 &mdash; Processors compose left-to-right on a shared working frame; the mask travels with it and is merged back at the end.</figcaption>
+  </figure>
+
+  <h3>5.3 The eleven processors</h3>
+  <table>
+    <tr><th style="width:16%">Processor</th><th style="width:10%">Faces?</th><th style="width:32%">Models (examples)</th><th>What it does</th></tr>
+    <tr><td><span class="path">face_swapper</span></td><td>source+target</td><td>inswapper, simswap, ghost, hyperswap, blendswap, uniface, hififace (13)</td><td>Identity swap; pixel-boost tiling for super-res; embedding conversion per architecture</td></tr>
+    <tr><td><span class="path">face_enhancer</span></td><td>target</td><td>codeformer, gfpgan, gpen_bfr, restoreformer++ (9)</td><td>Face restoration / super-resolution with blend weight</td></tr>
+    <tr><td><span class="path">deep_swapper</span></td><td>target</td><td>DeepFaceLive <code>.dfm</code> per-identity + custom (many)</td><td>Whole-face swap using pre-trained identity models</td></tr>
+    <tr><td><span class="path">face_editor</span></td><td>target</td><td>live_portrait (6 sub-models)</td><td>Edit eyes, lips, head pose, expression</td></tr>
+    <tr><td><span class="path">expression_restorer</span></td><td>target</td><td>live_portrait</td><td>Restore the target's original expression after edits</td></tr>
+    <tr><td><span class="path">age_modifier</span></td><td>target</td><td>fran, styleganex_age</td><td>Age / de-age a detected face</td></tr>
+    <tr><td><span class="path">lip_syncer</span></td><td>target+audio</td><td>wav2lip, wav2lip_gan, edtalk</td><td>Audio-driven lip synchronization</td></tr>
+    <tr><td><span class="path">face_debugger</span></td><td>target</td><td>&mdash; (uses shared analysers)</td><td>Diagnostic overlay: landmarks, boxes, masks, scores</td></tr>
+    <tr><td><span class="path">frame_enhancer</span></td><td>no</td><td>real_esrgan, clear_reality, swin2_sr, ultra_sharp (20)</td><td>Full-frame upscaling (x2&ndash;x8) via tiling</td></tr>
+    <tr><td><span class="path">frame_colorizer</span></td><td>no</td><td>ddcolor, deoldify</td><td>Colorize grayscale frames</td></tr>
+    <tr><td><span class="path">background_remover</span></td><td>no</td><td>rmbg, birefnet, isnet, modnet, u2net (15)</td><td>Segment &amp; remove/matte the background</td></tr>
+  </table>
+
+  <h3>5.4 Shared processor helpers</h3>
+  <div class="cols">
+    <div>
+      <div class="card"><div class="ct">pixel_boost.py</div>
+      Two numpy reshape helpers &mdash; <code>implode_pixel_boost</code> tiles a large face crop into model-sized sub-frames for batched
+      inference, <code>explode_pixel_boost</code> reassembles them. Used only by <span class="path">face_swapper</span> to swap above the
+      model's native resolution.</div>
+    </div>
+    <div>
+      <div class="card"><div class="ct">live_portrait.py</div>
+      Motion/expression math for the LivePortrait model family: Euler-angle limits (pitch &plusmn;30&deg;, yaw &plusmn;60&deg;, roll
+      &plusmn;20&deg;), expression clamps, and rotation-matrix construction. Powers <span class="path">face_editor</span> and
+      <span class="path">expression_restorer</span>.</div>
+    </div>
+  </div>
+
+  <h4>Model declaration &amp; source keys</h4>
+  <p>Each <code>create_static_model_set()</code> returns a nested dict keyed by model name; every entry carries
+  <code>__metadata__</code> (vendor/license/year), <code>hashes</code>, <code>sources</code> ( <code>{url, path}</code> pairs), plus
+  <code>template</code>, <code>size</code>, and often <code>type</code>/<code>mean</code>/<code>std</code>. A single model may declare
+  <em>multiple</em> source keys &mdash; e.g. face_swapper's <code>face_swapper</code> + <code>embedding_converter</code>, or face_editor's
+  six LivePortrait sub-models &mdash; each becoming its own <code>InferenceSession</code>.</p>
+</div>
+
+<!-- ============================ 6. INFERENCE ============================ -->
+<div class="section">
+  <p class="hdr-eyebrow">Section 6</p>
+  <h2>Inference &amp; Execution Layer</h2>
+
+  <p class="lead">This layer turns model files into running ONNX sessions on the best available hardware, and guarantees model integrity
+  through on-demand download with checksum verification.</p>
+
+  <h3>6.1 ONNX session pooling</h3>
+  <p><span class="path">inference_manager.py</span> caches sessions in a two-tier global
+  <code>INFERENCE_POOL_SET = {'cli': {}, 'ui': {}}</code>. Each pool is keyed by an <em>inference context</em> string that concatenates
+  module name, model names, device id, and the ordered execution providers:</p>
+  <figure>
+    <svg viewBox="0 0 720 96" width="720" font-family="Segoe UI,Arial">
+      <style>.k{font-family:Consolas,monospace;font-size:10px;fill:#0b3d66}.lab{font-size:8px;fill:#66748a}</style>
+      <rect x="8" y="30" width="704" height="34" rx="6" fill="#f6f8fa" stroke="#d9e0ea"/>
+      <text class="k" x="20" y="52">facefusion.face_swapper . inswapper_128 . 0 . cuda . cpu</text>
+      <text class="lab" x="20" y="24">module</text>
+      <text class="lab" x="185" y="24">model name(s)</text>
+      <text class="lab" x="330" y="24">device id</text>
+      <text class="lab" x="405" y="24">execution providers (priority order)</text>
+      <text class="lab" x="20" y="80" fill="#c8402f">&rarr; distinct GPU id or provider list &rArr; distinct pool. cli&harr;ui pools are cross-shared so one session serves both contexts.</text>
+    </svg>
+    <figcaption>Figure 6 &mdash; Inference-pool cache key. Session load failure is fatal (<code>fatal_exit(1)</code>).</figcaption>
+  </figure>
+  <ul>
+    <li><strong>Lazy &amp; shared.</strong> <code>get_inference_pool()</code> waits while <code>process_manager.is_checking()</code>, resolves
+      providers (a module may override <code>resolve_execution_providers</code>), and cross-populates the cli/ui caches so both contexts
+      reuse one session. For multi-GPU it returns a pool for a <em>randomly chosen</em> device id (crude load spread).</li>
+    <li><strong>Eviction.</strong> <code>clear_inference_pool()</code> deletes the module's contexts; on <strong>Windows + DirectML</strong>
+      it clears the whole app-context bucket (a driver workaround, since DirectML sessions must be torn down together).</li>
+    <li><strong>No central lock.</strong> The only concurrency gate around pool mutation is the <code>is_checking()</code> spin-wait; session
+      thread-safety is handled at <code>.run</code> time (&sect;10.2).</li>
+  </ul>
+
+  <h3>6.2 Execution-provider priority</h3>
+  <p><span class="path">execution.py</span> derives available providers from ONNX Runtime and re-sorts them into FaceFusion's canonical
+  priority, then maps each to an ORT <code>(name, options)</code> tuple. CPU is always appended last as the universal fallback.</p>
+  <table>
+    <tr><th>Priority</th><th>Provider</th><th>Notable options set by <code>create_inference_providers</code></th></tr>
+    <tr><td>1</td><td>CUDA</td><td><code>device_id</code>, <code>cudnn_conv_algo_search</code> (DEFAULT on GTX 16xx, else EXHAUSTIVE)</td></tr>
+    <tr><td>2</td><td>TensorRT</td><td>engine &amp; timing cache paths, <code>trt_builder_optimization_level: 4</code></td></tr>
+    <tr><td>3</td><td>ROCm</td><td><code>device_id</code></td></tr>
+    <tr><td>4</td><td>MIGraphX</td><td><code>device_id</code> + optional model cache dir</td></tr>
+    <tr><td>5</td><td>CoreML</td><td><code>SpecializationStrategy: FastPrediction</code> + cache dir</td></tr>
+    <tr><td>6</td><td>OpenVINO</td><td><code>device_type</code> (GPU / GPU.N), <code>precision: FP32</code></td></tr>
+    <tr><td>7</td><td>QNN</td><td><code>device_id</code>, <code>backend_type: htp</code></td></tr>
+    <tr><td>8</td><td>DirectML</td><td><code>device_id</code> (deprioritized near the tail)</td></tr>
+    <tr><td>9</td><td>CPU</td><td>bare fallback, always last</td></tr>
+  </table>
+  <p>Device discovery runs <code>nvidia-smi --query --xml-format</code> (cached) to populate <code>ExecutionDevice</code> records &mdash;
+  driver, CUDA version, product name, VRAM total/free, temperatures, utilization. Engine/timing caches live under a
+  version-scoped <span class="path">.caches/&lt;ort-version&gt;</span> directory to avoid cross-version collisions.</p>
+
+  <h3>6.3 Model download &amp; integrity</h3>
+  <p><span class="path">download.py</span> fetches models on demand into <span class="path">.assets/models/</span>. URLs are resolved by
+  walking <code>download_providers</code> in order &mdash; GitHub releases, then Hugging Face (with an <code>hf-mirror</code> fallback)
+  &mdash; pinging each candidate base URL and using the first reachable one.</p>
+  <div class="cols">
+    <div>
+      <div class="card"><div class="ct">Download mechanics</div>
+      <code>conditional_download</code> compares the existing partial size to the remote content-length and resumes via <code>curl</code>
+      (5s timeout, 5 retries), driving a <code>tqdm</code> bar by polling file growth.</div>
+    </div>
+    <div>
+      <div class="card"><div class="ct">Integrity gate</div>
+      Each <code>.onnx</code> has a sidecar <code>.hash</code> (CRC32). <code>validate_source_paths</code> re-hashes the file and, if it
+      still fails after (re)download, <strong>deletes the corrupt source</strong>. A source is trusted only when its CRC matches.</div>
+    </div>
+  </div>
+  <p><span class="path">hash_helper.create_hash()</span> is simply <code>crc32</code> formatted as 8 hex digits &mdash; an integrity/
+  tamper checksum, not a cryptographic hash. The same primitive underpins the content-safety gate (&sect;10.1) and the frame cache key.</p>
+</div>
+
+<!-- ============================ 7. WORKFLOWS ============================ -->
+<div class="section">
+  <p class="hdr-eyebrow">Section 7</p>
+  <h2>Processing Workflows &amp; Media I/O</h2>
+
+  <p class="lead">Two workflow modules orchestrate the full pipeline. The image path is a short linear sequence; the video path adds frame
+  extraction, multi-threaded per-frame processing, re-encoding, and audio restoration.</p>
+
+  <h3>7.1 The video pipeline</h3>
+  <p><span class="path">workflows/image_to_video.py::process()</span> runs an ordered task list, aborting on the first non-zero error code,
+  bracketed by <code>process_manager.start()</code> / <code>end()</code>:</p>
+  <figure>
+    <svg viewBox="0 0 730 150" width="730" font-family="Segoe UI,Arial">
+      <defs><marker id="ar7" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#66748a"/></marker>
+      <style>.b{fill:#fff;stroke:#1f5fa8;stroke-width:1.2}.hl{fill:#eef5fc;stroke:#1f5fa8;stroke-width:1.6}.t{font-size:9px;fill:#16497f;font-weight:600}.s{font-size:7.6px;fill:#3d4a5c}</style></defs>
+      <rect class="b" x="6" y="40" width="98" height="46" rx="6"/><text class="t" x="55" y="60" text-anchor="middle">setup</text><text class="s" x="55" y="74" text-anchor="middle">NSFW check,</text>
+      <line x1="104" y1="63" x2="124" y2="63" stroke="#66748a" marker-end="url(#ar7)"/>
+      <rect class="b" x="126" y="40" width="98" height="46" rx="6"/><text class="t" x="175" y="60" text-anchor="middle">extract_frames</text><text class="s" x="175" y="74" text-anchor="middle">ffmpeg &rarr; %08d</text>
+      <line x1="224" y1="63" x2="244" y2="63" stroke="#66748a" marker-end="url(#ar7)"/>
+      <rect class="hl" x="246" y="34" width="110" height="58" rx="6"/><text class="t" x="301" y="52" text-anchor="middle">process_video</text><text class="s" x="301" y="66" text-anchor="middle">ThreadPoolExecutor</text><text class="s" x="301" y="78" text-anchor="middle">execution_thread_count</text>
+      <line x1="356" y1="63" x2="376" y2="63" stroke="#66748a" marker-end="url(#ar7)"/>
+      <rect class="b" x="378" y="40" width="98" height="46" rx="6"/><text class="t" x="427" y="60" text-anchor="middle">merge_frames</text><text class="s" x="427" y="74" text-anchor="middle">ffmpeg encode</text>
+      <line x1="476" y1="63" x2="496" y2="63" stroke="#66748a" marker-end="url(#ar7)"/>
+      <rect class="b" x="498" y="40" width="98" height="46" rx="6"/><text class="t" x="547" y="60" text-anchor="middle">restore_audio</text><text class="s" x="547" y="74" text-anchor="middle">mux / replace</text>
+      <line x1="596" y1="63" x2="616" y2="63" stroke="#66748a" marker-end="url(#ar7)"/>
+      <rect class="b" x="618" y="40" width="104" height="46" rx="6" style="fill:#eef7f1;stroke:#2e7d55"/><text class="t" x="670" y="60" text-anchor="middle" style="fill:#2e7d55">finalize_video</text><text class="s" x="670" y="74" text-anchor="middle">clear temp, verify</text>
+      <text class="s" x="365" y="118" text-anchor="middle" fill="#66748a">A stop request cancels outstanding frame futures; frames are read/written in the per-target temp directory throughout.</text>
+    </svg>
+    <figcaption>Figure 7 &mdash; The six-stage video workflow. Only <code>process_video</code> is parallel; every other stage is a single FFmpeg or filesystem operation.</figcaption>
+  </figure>
+  <p><strong>Frame parallelism.</strong> <code>process_video</code> submits every extracted frame to a single
+  <code>ThreadPoolExecutor(max_workers = execution_thread_count)</code> (default 8, range 1&ndash;32) and consumes results via
+  <code>as_completed</code>; a stop request cancels the remaining futures. Each worker runs <code>process_temp_frame</code>, which reads
+  the frame (RGBA), fetches the aligned audio/voice frames for lip-sync, runs every processor's <code>process_frame</code> in sequence,
+  merges the mask, and writes the frame back in place.</p>
+  <div class="note"><span class="h">On <code>execution_queue_count</code></span>
+  Older FaceFusion had a separate queue-count knob; in this version concurrency width is governed solely by
+  <code>execution_thread_count</code> &mdash; all frames are submitted at once and the executor's internal queue backs them.</div>
+
+  <h3>7.2 The image pipeline</h3>
+  <p><span class="path">image_to_image.py</span> is the same driver without frames: <code>setup</code> (NSFW check + temp dir) &rarr;
+  <code>prepare_image</code> (resolve output resolution, copy into temp) &rarr; <code>process_image</code> (read RGBA, run every processor,
+  merge mask, write) &rarr; <code>finalize_image</code> (encode to output, clean up). RGBA is used so an alpha mask can travel with the
+  frame; processors receive the RGB slice while the mask is carried separately.</p>
+
+  <h3>7.3 Media I/O</h3>
+  <table>
+    <tr><th style="width:20%">Module</th><th>Responsibility</th></tr>
+    <tr><td><span class="path">vision.py</span></td>
+      <td>Frame read/write with <strong>Windows Unicode-path handling</strong> (<code>numpy.fromfile</code> + <code>cv2.imdecode</code> instead of <code>cv2.imread</code>); pooled <code>VideoCapture</code> reads under a global semaphore; fps/resolution/duration/trim detection; resize/crop/letterbox/cover; color matching; tiling; mask extract/merge helpers. Single-image reads are <code>lru_cache</code>d (size 64) so worker threads share decoded frames.</td></tr>
+    <tr><td><span class="path">ffmpeg_builder.py</span></td>
+      <td>Composable command <em>fragments</em> (each returns a token list); <code>chain</code> flattens, <code>concat</code> merges same-flag filters, <code>run</code> prepends the binary + loglevel. Encoders/quality/preset builders map a generic 0&ndash;100 quality onto codec-specific CRF/CQ/QP/bitrate and preset names.</td></tr>
+    <tr><td><span class="path">ffmpeg.py</span></td>
+      <td>Invokes FFmpeg via <code>subprocess.Popen</code>, polling while <code>is_processing()</code> and terminating on stop; high-level ops: <code>extract_frames</code>, <code>merge_video</code>, <code>copy_image</code>/<code>finalize_image</code>, <code>restore_audio</code>/<code>replace_audio</code>, <code>read_audio_buffer</code>, <code>concat_video</code>; progress parsed from <code>frame=</code> lines into a tqdm bar.</td></tr>
+    <tr><td><span class="path">audio.py</span></td>
+      <td>Decodes audio via FFmpeg (48kHz/16-bit/stereo), builds an 80-bin mel spectrogram (SciPy STFT), slices into per-frame chunks aligned to video frames; cached. Supplies <code>get_audio_frame</code>/<code>get_voice_frame</code> to lip-sync.</td></tr>
+    <tr><td><span class="path">voice_extractor.py</span></td>
+      <td>MDX-Net vocal isolation (kim_vocal, uvr_mdxnet) via overlap-add STFT framing; isolates the voice track that drives lip-sync.</td></tr>
+    <tr><td><span class="path">temp_helper.py</span></td>
+      <td>Per-target temp dir <span class="path">&lt;temp&gt;/facefusion/&lt;target_name&gt;/</span> holding the working copy + numbered frames; created at setup, cleared at finalize (kept if <code>keep_temp</code>).</td></tr>
+    <tr><td><span class="path">process_manager.py</span></td>
+      <td>Four-state machine <code>checking / processing / stopping / pending</code>; workflows bracket with <code>start()</code>/<code>end()</code>; a stop transition cancels frame futures and terminates FFmpeg.</td></tr>
+  </table>
+</div>
+
+<!-- ============================ 8. JOBS ============================ -->
+<div class="section">
+  <p class="hdr-eyebrow">Section 8</p>
+  <h2>The Job System</h2>
+
+  <p class="lead">Every run is a <em>job</em>: a JSON file of ordered <em>steps</em>, each capturing the arguments for one processing
+  operation. This makes interactive, headless, and batch runs share identical execution semantics.</p>
+
+  <h3>8.1 On-disk model &amp; status flow</h3>
+  <p>A job's status <em>is</em> the directory it sits in under <code>jobs_path</code>. Changing status = moving the file.
+  <code>init_jobs</code> creates one directory per status.</p>
+  <figure>
+    <svg viewBox="0 0 720 130" width="720" font-family="Segoe UI,Arial">
+      <defs><marker id="ar8" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#66748a"/></marker>
+      <style>.b{fill:#fff;stroke:#1f5fa8;stroke-width:1.3}.t{font-size:10px;fill:#16497f;font-weight:600}.s{font-size:7.8px;fill:#3d4a5c}.e{font-size:8px;fill:#66748a}</style></defs>
+      <rect class="b" x="10" y="46" width="120" height="42" rx="6"/><text class="t" x="70" y="64" text-anchor="middle">drafted</text><text class="s" x="70" y="78" text-anchor="middle">create + add steps</text>
+      <line x1="130" y1="67" x2="176" y2="67" stroke="#66748a" marker-end="url(#ar8)"/><text class="e" x="153" y="60" text-anchor="middle">submit</text>
+      <rect class="b" x="178" y="46" width="120" height="42" rx="6"/><text class="t" x="238" y="64" text-anchor="middle">queued</text><text class="s" x="238" y="78" text-anchor="middle">steps &rarr; queued</text>
+      <line x1="298" y1="67" x2="344" y2="67" stroke="#66748a" marker-end="url(#ar8)"/><text class="e" x="321" y="60" text-anchor="middle">run</text>
+      <rect class="b" x="346" y="46" width="120" height="42" rx="6" style="fill:#eef5fc"/><text class="t" x="406" y="64" text-anchor="middle">started</text><text class="s" x="406" y="78" text-anchor="middle">per-step runner</text>
+      <line x1="466" y1="58" x2="512" y2="40" stroke="#66748a" marker-end="url(#ar8)"/>
+      <line x1="466" y1="76" x2="512" y2="94" stroke="#66748a" marker-end="url(#ar8)"/>
+      <rect class="b" x="514" y="22" width="120" height="34" rx="6" style="fill:#eef7f1;stroke:#2e7d55"/><text class="t" x="574" y="43" text-anchor="middle" style="fill:#2e7d55">completed</text>
+      <rect class="b" x="514" y="82" width="120" height="34" rx="6" style="fill:#fdf3ec;stroke:#c8402f"/><text class="t" x="574" y="103" text-anchor="middle" style="fill:#c8402f">failed</text>
+      <path d="M574,116 C660,120 660,60 640,52" fill="none" stroke="#c8402f" stroke-width="1.1" stroke-dasharray="4 3" marker-end="url(#ar8)"/>
+      <text class="e" x="690" y="86">retry</text>
+    </svg>
+    <figcaption>Figure 8 &mdash; Job status flow. <code>retry</code> resets a failed job's steps to queued and moves it back for another run.</figcaption>
+  </figure>
+  <p>The JSON schema is small: a <code>Job</code> has <code>{version, date_created, date_updated, steps[]}</code> and each
+  <code>JobStep</code> is <code>{args, status}</code> where step status adds the transient <code>started</code>.</p>
+
+  <h3>8.2 Manager &amp; runner</h3>
+  <div class="cols">
+    <div>
+      <div class="card"><div class="ct">job_manager.py (CRUD)</div>
+      <ul>
+        <li><code>create_job</code> &rarr; drafted (only if id unused anywhere)</li>
+        <li><code>submit_job</code> &rarr; queued (needs &ge;1 step)</li>
+        <li><code>add / insert / remove / remix_step</code></li>
+        <li><code>remix_step</code> chains a new step onto a prior step's output</li>
+        <li>file primitives: read/update (stamps <code>date_updated</code>)/move/delete; <code>find_job_ids</code> globs sorted by mtime = submission order</li>
+      </ul></div>
+    </div>
+    <div>
+      <div class="card"><div class="ct">job_runner.py (execution)</div>
+      <ul>
+        <li><code>run_job</code> runs only queued jobs; <code>run_steps</code> is sequential and short-circuits on first failure</li>
+        <li><code>run_step</code> sets <code>started</code>, calls the injected <code>process_step</code>, moves the step output</li>
+        <li><code>finalize_steps</code> concatenates multi-step video outputs (or moves images)</li>
+        <li><code>retry_job</code> re-queues a failed job; success &rarr; <em>completed</em>, else &rarr; <em>failed</em></li>
+      </ul></div>
+    </div>
+  </div>
+
+  <h3>8.3 Headless &amp; batch as ephemeral jobs</h3>
+  <p>Both non-interactive commands reuse the exact same machinery via a throwaway job:</p>
+  <table>
+    <tr><th style="width:22%">Command</th><th>Behaviour</th></tr>
+    <tr><td><code>headless-run</code></td><td>One ephemeral job, one step: <code>create &rarr; add_step &rarr; submit &rarr; run</code> in a single expression</td></tr>
+    <tr><td><code>batch-run</code></td><td>One ephemeral job, one step per file: expands <code>source_pattern</code>&times;<code>target_pattern</code> (cartesian product), formats an <code>output_pattern</code> with <code>{index}</code>/<code>{source_name}</code>/<code>{target_name}</code>/<code>{target_extension}</code></td></tr>
+  </table>
+  <p><span class="path">job_store.py</span> holds the <code>{job_keys, step_keys}</code> registry populated by <span class="path">program.py</span>;
+  <span class="path">job_helper.py</span> supplies timestamped ids (<code>job-YYYY-MM-DD-HH-MM-SS</code>) and per-step output paths;
+  <span class="path">job_list.py</span> renders the status table shown by <code>job-list</code> and the UI.</p>
+</div>
+
+<!-- ============================ 9. UI ============================ -->
+<div class="section">
+  <p class="hdr-eyebrow">Section 9</p>
+  <h2>The UI System</h2>
+
+  <p class="lead">The Gradio front-end (<span class="path">facefusion/uis/</span>) is a thin, self-wiring layer over the same state and
+  job machinery the CLI uses. Layouts assemble components; components follow a uniform render/listen/update pattern.</p>
+
+  <h3>9.1 Layouts &amp; loading</h3>
+  <p><span class="path">uis/core.py</span> dynamically imports a layout module
+  (<code>facefusion.uis.layouts.&lt;name&gt;</code>) and asserts it implements the four layout methods <code>pre_check</code>,
+  <code>render</code>, <code>listen</code>, <code>run</code>; a missing method hard-exits. Four layouts ship:</p>
+  <div class="kv">
+    <dt>default</dt><dd>the full processing UI (~35 components across three columns)</dd>
+    <dt>benchmark</dt><dd>performance testing across resolutions</dd>
+    <dt>jobs</dt><dd>manage &amp; run persisted jobs from the browser</dd>
+    <dt>webcam</dt><dd>live webcam processing</dd>
+  </div>
+  <p><code>launch()</code> builds a <code>gradio.Blocks</code> with a custom theme/CSS, calls each layout's <code>render()</code> then
+  <code>listen()</code> (wrapping in a <code>Tab</code> when more than one layout), and finally <code>run(ui)</code> which launches the
+  server (with favicon and optional auto-open browser).</p>
+
+  <h3>9.2 The component pattern</h3>
+  <p>Every component module is a small self-contained unit holding its Gradio widget in a module global and exposing three functions:</p>
+  <figure>
+    <svg viewBox="0 0 720 120" width="720" font-family="Segoe UI,Arial">
+      <defs><marker id="ar9" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#66748a"/></marker>
+      <style>.b{fill:#fff;stroke:#1f5fa8;stroke-width:1.2}.t{font-size:10px;fill:#16497f;font-weight:600}.s{font-size:8px;fill:#3d4a5c}</style></defs>
+      <rect class="b" x="20" y="40" width="150" height="46" rx="6"/><text class="t" x="95" y="60" text-anchor="middle">render()</text><text class="s" x="95" y="74" text-anchor="middle">build widget, seed from state</text>
+      <line x1="170" y1="63" x2="214" y2="63" stroke="#66748a" marker-end="url(#ar9)"/>
+      <rect class="b" x="216" y="40" width="150" height="46" rx="6"/><text class="t" x="291" y="60" text-anchor="middle">listen()</text><text class="s" x="291" y="74" text-anchor="middle">bind change/release events</text>
+      <line x1="366" y1="63" x2="410" y2="63" stroke="#66748a" marker-end="url(#ar9)"/>
+      <rect class="b" x="412" y="40" width="170" height="46" rx="6"/><text class="t" x="497" y="60" text-anchor="middle">update handler</text><text class="s" x="497" y="74" text-anchor="middle">set_item(...) &rarr; ui state</text>
+      <path d="M497,86 C497,108 95,108 95,88" fill="none" stroke="#c8402f" stroke-width="1.1" stroke-dasharray="4 3" marker-end="url(#ar9)"/>
+      <text class="s" x="300" y="106" text-anchor="middle" fill="#c8402f">handlers may return new values to re-render other components (cross-wired via the UI_COMPONENTS registry)</text>
+    </svg>
+    <figcaption>Figure 9 &mdash; The render/listen/update cycle. A global component registry lets components in different files observe each other's widgets.</figcaption>
+  </figure>
+  <p>Handlers write via <code>state_manager.set_item</code>, which &mdash; because the call originates under
+  <span class="path">uis/</span> &mdash; lands in the <em>ui</em> bucket. When the user launches a job, execution flips to the
+  <em>cli</em> context, so the <code>sync_item</code>/<code>collect_*</code> bridges (&sect;3.2&ndash;3.3) carry UI edits into the bucket the
+  job runner reads. The job-related components (<code>instant_runner</code>, <code>job_runner</code>, <code>job_manager</code>,
+  <code>job_list</code>, <code>ui_workflow</code>) are simply a UI surface over the &sect;8 job APIs.</p>
+</div>
+
+<!-- ============================ 10. CROSS-CUTTING ============================ -->
+<div class="section">
+  <p class="hdr-eyebrow">Section 10</p>
+  <h2>Cross-Cutting Concerns &amp; Appendices</h2>
+
+  <h3>10.1 The content-safety gate</h3>
+  <div class="warn"><span class="h">Hash-pinned NSFW detector &mdash; do not edit content_analyser.py</span>
+  <span class="path">core.py::common_pre_check()</span> re-hashes the <em>source</em> of
+  <span class="path">content_analyser.py</span> with <code>crc32</code> and aborts startup unless it equals the literal
+  <code>b14e7b92</code>. This runs before <code>run</code>, <code>headless-run</code>, <code>batch-run</code>, and <code>benchmark</code>.
+  <strong>Any change to that file &mdash; even whitespace &mdash; changes the hash and makes every processing command hard-exit.</strong>
+  If a refactor is unavoidable, the expected hash in <code>common_pre_check</code> must be updated to match.</div>
+  <p>Functionally, the content analyser is a three-model NSFW ensemble (EraX, Marqo, Freepik). A frame is flagged only on a
+  <strong>2-of-3 majority</strong>; a video is rejected when the positive-detection rate exceeds 10% of sampled frames (one frame per
+  second). This is a deliberate safety mechanism, not incidental code.</p>
+
+  <h3>10.2 Threading &amp; concurrency model</h3>
+  <div class="cols">
+    <div>
+      <div class="card"><div class="ct">Where parallelism lives</div>
+      Frame-level: one <code>ThreadPoolExecutor(execution_thread_count)</code> in <code>process_video</code>. Within a frame, processors
+      run sequentially. Multi-GPU spread is a random device-id choice per pool acquisition.</div>
+    </div>
+    <div>
+      <div class="card"><div class="ct">How correctness is preserved</div>
+      <code>thread_semaphore()</code> (a global count-1 semaphore) serializes non-thread-safe OpenCV capture and some ONNX runs.
+      <code>conditional_thread_semaphore()</code> narrows this to fragile backends only &mdash; <strong>DirectML (Win)</strong>,
+      <strong>MIGraphX / ROCm (Linux)</strong> &mdash; letting CUDA/CPU run inference concurrently.</div>
+    </div>
+  </div>
+
+  <h3>10.3 Caching summary</h3>
+  <table>
+    <tr><th style="width:30%">Cache</th><th style="width:26%">Key</th><th>Purpose</th></tr>
+    <tr><td>face_store <code>static_faces</code></td><td><code>crc32(frame bytes)</code></td><td>Skip the whole face pipeline for repeated frames</td></tr>
+    <tr><td>inference pools</td><td>module+models+device+providers</td><td>Reuse ONNX sessions across contexts</td></tr>
+    <tr><td><code>create_static_model_set</code></td><td><code>lru_cache</code> (download scope)</td><td>Build model catalogues once</td></tr>
+    <tr><td><code>read_static_image/video/audio</code></td><td><code>lru_cache(64)</code></td><td>Share decoded media across worker threads</td></tr>
+    <tr><td>ping / device detection</td><td><code>lru_cache</code></td><td>Avoid repeated network/nvidia-smi calls</td></tr>
+  </table>
+
+  <h3>10.4 Memory management</h3>
+  <p><span class="path">memory.py::limit_system_memory()</span> caps the process working set &mdash; via
+  <code>SetProcessWorkingSetSize</code> on Windows, <code>setrlimit(RLIMIT_DATA)</code> on POSIX. GPU memory is governed separately by the
+  <code>video_memory_strategy</code> option (<em>moderate</em>/<em>strict</em>), which drives how aggressively processors clear inference
+  pools in <code>post_process</code>. <code>OMP_NUM_THREADS=1</code> is set for ONNX stability.</p>
+
+  <h3>10.5 Development &amp; CI</h3>
+  <div class="kv">
+    <dt>Lint</dt><dd><code>flake8 facefusion.py install.py facefusion tests</code> &mdash; tabs, import order (flake8-import-order, pycharm style)</dd>
+    <dt>Types</dt><dd><code>mypy &hellip;</code> &mdash; full annotations required (disallow_untyped_defs/calls, disallow_any_generics)</dd>
+    <dt>Tests</dt><dd><code>pytest</code> / <code>pytest tests --cov facefusion</code></dd>
+    <dt>CI</dt><dd>Python 3.12 on macOS / Ubuntu / Windows; the lint job gates the tests</dd>
+    <dt>Install</dt><dd><code>python install.py --onnxruntime {default|cuda|directml|tensorrt|openvino|rocm|migraphx}</code></dd>
+  </div>
+
+  <h3>10.6 Key types (types.py)</h3>
+  <div class="kv">
+    <dt>Face</dt><dd>the namedtuple of &sect;4.2</dd>
+    <dt>VisionFrame</dt><dd>NDArray &mdash; BGR uint8 image/video frame</dd>
+    <dt>Mask</dt><dd>NDArray alpha mask carried through the processor chain</dd>
+    <dt>ProcessorOutputs</dt><dd>Tuple[VisionFrame, Mask] returned by <code>process_frame</code></dd>
+    <dt>InferencePool / &hellip;Set</dt><dd>model_name&rarr;session; app_context&rarr;context&rarr;pool</dd>
+    <dt>ProcessState</dt><dd>'checking' | 'processing' | 'stopping' | 'pending'</dd>
+    <dt>Job / JobStep</dt><dd>persisted job schema of &sect;8.1</dd>
+    <dt>ExecutionProvider</dt><dd>the Literal that defines provider priority order</dd>
+  </div>
+
+  <div class="foot-note">
+    This document was generated from a direct reading of the FaceFusion source tree (v3.6.1). Line references reflect the state of the
+    repository at analysis time and may drift as the code evolves; treat <span class="path">file.py:line</span> pointers as starting
+    points rather than exact addresses. FaceFusion is licensed OpenRAIL-AS &mdash; review the license before any commercial or
+    redistributive use of the platform or its models.
+  </div>
+</div>
+
+</body>
+</html>
