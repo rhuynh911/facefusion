@@ -259,6 +259,10 @@ def process_preview_frame(reference_vision_frame : VisionFrame, source_vision_fr
 
 	temp_vision_frame = prepare_output_frame(target_vision_frame, temp_vision_frame, temp_vision_mask)
 
+	if preview_mode in [ 'frame-by-frame', 'face-by-face' ]:
+		# prepare_output_frame always returns BGRA, so a target without an alpha channel has to gain one before it can be stacked against it
+		target_vision_frame = merge_vision_mask(target_vision_frame, extract_vision_mask(target_vision_frame))
+
 	if preview_mode == 'frame-by-frame':
 		return numpy.hstack((target_vision_frame, temp_vision_frame))
 
