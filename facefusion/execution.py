@@ -14,6 +14,14 @@ from facefusion.types import ExecutionDevice, ExecutionProvider, InferenceOption
 onnxruntime.set_default_logger_severity(3)
 
 
+def preload_inference_libraries() -> None:
+	if hasattr(onnxruntime, 'preload_dlls'):
+		onnxruntime.preload_dlls() # loads CUDA and cuDNN from the nvidia site packages, needed outside conda
+
+
+preload_inference_libraries()
+
+
 def has_execution_provider(execution_provider : ExecutionProvider) -> bool:
 	return execution_provider in get_available_execution_providers()
 

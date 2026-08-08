@@ -1,6 +1,6 @@
 import math
 from functools import lru_cache
-from typing import List, Optional, Tuple
+from typing import List, Optional, Set, Tuple
 
 import cv2
 import numpy
@@ -11,6 +11,8 @@ from facefusion.filesystem import get_file_extension, is_image, is_video
 from facefusion.thread_helper import thread_semaphore
 from facefusion.types import ColorMode, Duration, Fps, Mask, Orientation, Resolution, Scale, VisionFrame
 from facefusion.video_manager import get_video_capture
+
+UNDECODABLE_VIDEO_PATHS : Set[str] = set()
 
 
 def read_static_images(image_paths : List[str], color_mode : ColorMode = 'rgb') -> List[VisionFrame]:
@@ -79,7 +81,7 @@ def read_video_frame(video_path : str, frame_number : int = 0) -> Optional[Visio
 	if is_video(video_path):
 		video_capture = get_video_capture(video_path)
 
-		if video_capture and video_capture.isOpened():
+		if video_capture and video_capture.isOpened() and video_path not in UNDECODABLE_VIDEO_PATHS:
 			frame_total = video_capture.get(cv2.CAP_PROP_FRAME_COUNT)
 
 			with thread_semaphore():
@@ -88,6 +90,8 @@ def read_video_frame(video_path : str, frame_number : int = 0) -> Optional[Visio
 
 			if has_vision_frame:
 				return vision_frame
+
+			UNDECODABLE_VIDEO_PATHS.add(video_path)
 
 		return decode_video_frame(video_path, frame_number)
 
