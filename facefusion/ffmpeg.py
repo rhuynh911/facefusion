@@ -10,7 +10,7 @@ import facefusion.choices
 from facefusion import ffmpeg_builder, logger, process_manager, state_manager, translator
 from facefusion.filesystem import get_file_format, remove_file
 from facefusion.temp_helper import get_temp_file_path, get_temp_frames_pattern
-from facefusion.types import AudioBuffer, AudioEncoder, Command, EncoderSet, Fps, Resolution, UpdateProgress, VideoEncoder, VideoFormat
+from facefusion.types import AudioBuffer, AudioEncoder, Command, EncoderSet, Fps, Resolution, UpdateProgress, VideoEncoder, VideoFormat, VisionBuffer
 from facefusion.vision import detect_video_duration, detect_video_fps, pack_resolution, predict_video_frame_total
 
 
@@ -146,6 +146,25 @@ def finalize_image(target_path : str, output_path : str, output_image_resolution
 		ffmpeg_builder.force_output(output_path)
 	)
 	return run_ffmpeg(commands).returncode == 0
+
+
+def read_video_frame_buffer(target_path : str, frame_number : int, video_fps : Fps, video_resolution : Resolution) -> Optional[VisionBuffer]:
+	video_width, video_height = video_resolution
+	commands = ffmpeg_builder.chain(
+		ffmpeg_builder.seek_media_position(frame_number / video_fps),
+		ffmpeg_builder.set_input(target_path),
+		ffmpeg_builder.select_media_stream('v:0'),
+		ffmpeg_builder.select_frame_total(1),
+		ffmpeg_builder.set_media_resolution(str(video_width) + 'x' + str(video_height)),
+		ffmpeg_builder.capture_video(),
+		ffmpeg_builder.cast_stream()
+	)
+
+	process = open_ffmpeg(commands)
+	video_frame_buffer, _ = process.communicate()
+	if process.returncode == 0:
+		return video_frame_buffer
+	return None
 
 
 def read_audio_buffer(target_path : str, audio_sample_rate : int, audio_sample_size : int, audio_channel_total : int) -> Optional[AudioBuffer]:

@@ -89,6 +89,26 @@ def read_video_frame(video_path : str, frame_number : int = 0) -> Optional[Visio
 			if has_vision_frame:
 				return vision_frame
 
+		return decode_video_frame(video_path, frame_number)
+
+	return None
+
+
+def decode_video_frame(video_path : str, frame_number : int = 0) -> Optional[VisionFrame]:
+	from facefusion.ffmpeg import read_video_frame_buffer # avoids a circular import as ffmpeg imports vision
+
+	video_fps = detect_video_fps(video_path)
+	video_resolution = detect_video_resolution(video_path)
+
+	if video_fps and video_resolution:
+		video_width, video_height = video_resolution
+		video_frame_buffer = read_video_frame_buffer(video_path, max(frame_number - 1, 0), video_fps, video_resolution)
+
+		if video_frame_buffer and len(video_frame_buffer) >= video_height * video_width * 3:
+			vision_frame = numpy.frombuffer(video_frame_buffer, dtype = numpy.uint8)[:video_height * video_width * 3]
+			vision_frame = vision_frame.reshape(video_height, video_width, 3)
+			return cv2.cvtColor(vision_frame, cv2.COLOR_RGB2BGR)
+
 	return None
 
 

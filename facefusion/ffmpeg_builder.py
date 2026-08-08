@@ -105,8 +105,16 @@ def select_frame_range(frame_start : int, frame_end : int, video_fps : Fps) -> L
 	return [ '-vf', 'fps=' + str(video_fps) ]
 
 
+def select_frame_total(frame_total : int) -> List[Command]:
+	return [ '-frames:v', str(frame_total) ]
+
+
 def prevent_frame_drop() -> List[Command]:
 	return [ '-vsync', '0' ]
+
+
+def seek_media_position(media_position : Duration) -> List[Command]:
+	return [ '-ss', str(media_position) ]
 
 
 def select_media_range(frame_start : int, frame_end : int, media_fps : Fps) -> List[Command]:
