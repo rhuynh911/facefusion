@@ -14,8 +14,8 @@ from facefusion.face_scanner import FaceCandidate, create_face_crop, create_fram
 from facefusion.face_selector import sort_and_filter_faces
 from facefusion.face_store import clear_static_faces
 from facefusion.filesystem import filter_audio_paths, is_image, is_video
-from facefusion.uis import choices as uis_choices
 from facefusion.types import FaceSelectorOrder, Gender, Race
+from facefusion.uis import choices as uis_choices
 from facefusion.uis.core import get_ui_components
 from facefusion.uis.ui_helper import convert_str_none
 from facefusion.vision import detect_video_fps, read_static_image, read_static_images, read_video_frame
