@@ -79,6 +79,13 @@
 	min-height: 7.375rem;
 }
 
+/* the unscoped gradio rule caps .grid-wrap at a percentage of an auto height parent, which clips rows instead of scrolling them */
+:root:root:root:root .box-face-scanner .grid-wrap
+{
+	max-height: 30rem !important;
+	overflow-y: auto;
+}
+
 :root:root:root:root .tab-wrapper
 {
 	padding: 0 0.625rem;
